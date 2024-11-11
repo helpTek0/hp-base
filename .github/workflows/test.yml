@@ -1,0 +1,75 @@
+name: test
+
+on:
+  push:
+    branches-ignore:
+      - "ga-ignore-*"
+  pull_request:
+    branches-ignore:
+      - "ga-ignore-*"
+
+jobs:
+
+  check_is_here:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v3
+        - id: check_is_here
+          run: |
+               FILES=$(ls)
+               if [[ -n $FILES ]]
+               then
+                    exit 0
+               else
+                    echo No files detected
+               fi
+
+  check_coding_style:
+    needs: [check_is_here] 
+    runs-on: ubuntu-latest
+    container: ghcr.io/epitech/coding-style-checker:latest
+    steps:
+      - uses: actions/checkout@v3
+      - id: check_coding_style
+        run: |
+          check.sh $(pwd) $(pwd)
+          CODING_STYLE_ERRORS=$(cat $(pwd)/coding-style-reports.log)
+          if [[ -n $CODING_STYLE_ERRORS ]]; then
+            echo "Coding style errors detected:"
+            echo "$CODING_STYLE_ERRORS"
+            exit 1
+          else
+            echo "No coding style errors detected"
+            exit 0
+          fi
+          
+  check_repo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - id: check_repo
+        run: |
+          UNWANTED_FILES=$(find . -type f -not -path -wholename -or -name "*~" -or -name "*.o")
+          if [[ -n $UNWANTED_FILES ]]
+          then
+            exit 0
+          else
+            echo No unwanted files detected
+          fi
+
+  check_size_repo:
+    needs: [check_repo]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check repository size
+        id: check_size_repo
+        run: |
+          SIZE=$(du -sm . | awk '{print $1}')
+          if [ "$SIZE" -le 30 ]; then
+            echo "Repository size is within limit."
+            exit 0
+          else
+            echo "Repository size exceeds 30 MB."
+            exit 1
+          fi
