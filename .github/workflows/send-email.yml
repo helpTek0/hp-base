@@ -2,22 +2,38 @@ name: Send Workflow Logs via Email
 
 on:
   workflow_run:
-    workflows: ["CI/CD Workflow"]  # Nom de votre workflow principal
+    workflows: ["CI/CD Workflow"]  # Remplacez par le nom de votre workflow principal
     types: [completed]
 
 jobs:
   send_email:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Étape 1 : Installer GitHub CLI
+      - name: Install GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install -y gh
+
+      # Étape 2 : Authentification avec GitHub CLI
+      - name: Authenticate GitHub CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${GITHUB_TOKEN}" | gh auth login --with-token
+
+      # Étape 3 : Récupérer les logs du dernier workflow
       - name: Get logs of the latest workflow
         run: |
           gh run list --workflow "CI/CD Workflow" --limit 1 > workflow_id.txt
           WORKFLOW_ID=$(awk 'NR==2{print $7}' workflow_id.txt)
           gh run view $WORKFLOW_ID --log > workflow.log
 
+      # Étape 4 : Envoyer un email avec les logs
       - name: Send Email with Logs
         uses: dawidd6/action-send-mail@v3
         with:
